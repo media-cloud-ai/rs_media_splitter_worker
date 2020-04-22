@@ -1,3 +1,8 @@
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate serde_derive;
+
 use amqp_worker::worker::{Parameter, ParameterType};
 use amqp_worker::{
   job::{Job, JobResult},
@@ -5,9 +10,6 @@ use amqp_worker::{
 };
 use lapin_futures::Channel;
 use semver::Version;
-
-#[macro_use]
-extern crate log;
 
 mod message;
 

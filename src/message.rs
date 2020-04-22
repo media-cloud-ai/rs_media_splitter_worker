@@ -2,14 +2,24 @@ use amqp_worker::{
   job::{Job, JobResult, JobStatus},
   MessageError, ParametersContainer,
 };
-
 use lapin_futures::Channel;
-
 use stainless_ffmpeg::format_context::FormatContext;
 
 const SEGMENT_DURATION_PARAMETER: &'static str = "segment_duration";
 const SEGMENT_OVERLAP_PARAMETER: &'static str = "segment_overlap";
 const SOURCE_PATH_PARAMETER: &'static str = "source_path";
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Segment {
+  start: u64,
+  end: u64,
+}
+
+impl Segment {
+  fn new(start: u64, end: u64) -> Segment {
+    Segment { start, end }
+  }
+}
 
 pub fn process(
   _channel: Option<&Channel>,
@@ -100,7 +110,7 @@ fn split_media(
   media_duration: u64,
   segment_duration: i64,
   segment_overlap: Option<i64>,
-) -> Result<Vec<(u64, u64)>, String> {
+) -> Result<Vec<Segment>, String> {
   let number_of_segments = (media_duration as f64 / segment_duration as f64).ceil() as u64;
   let overlap = segment_overlap.unwrap_or(0) as u64;
 
@@ -114,7 +124,7 @@ fn split_media(
       next_end = media_duration - 1;
     }
 
-    segments.push((next_start, next_end));
+    segments.push(Segment::new(next_start, next_end));
 
     next_end += 1;
     if next_end < overlap {
@@ -135,9 +145,9 @@ pub fn test_split_media_range() {
   let segments = result.unwrap();
   assert_eq!(1, segments.len());
 
-  let (start, end) = segments[0];
-  let mut ms = start;
-  while ms <= end {
+  let segment = &segments[0];
+  let mut ms = segment.start;
+  while ms <= segment.end {
     ms += 1;
   }
   assert_eq!(ms, segment_duration as u64);
@@ -163,7 +173,12 @@ pub fn test_split_media() {
     (80, 89),
     (90, media_duration - 1),
   ];
-  assert_eq!(expected_segments, segments);
+  for index in 0..segments.len() {
+    assert_eq!(
+      expected_segments[index],
+      (segments[index].start, segments[index].end)
+    );
+  }
 }
 
 #[test]
@@ -175,7 +190,12 @@ pub fn test_split_media_with_segment_larger_than_duration() {
   let segments = result.unwrap();
   assert_eq!(1, segments.len());
   let expected_segments = vec![(0, media_duration - 1)];
-  assert_eq!(expected_segments, segments);
+  for index in 0..segments.len() {
+    assert_eq!(
+      expected_segments[index],
+      (segments[index].start, segments[index].end)
+    );
+  }
 }
 
 #[test]
@@ -199,7 +219,12 @@ pub fn test_split_media_with_overlap() {
     (76, 89),
     (86, media_duration - 1),
   ];
-  assert_eq!(expected_segments, segments);
+  for index in 0..segments.len() {
+    assert_eq!(
+      expected_segments[index],
+      (segments[index].start, segments[index].end)
+    );
+  }
 }
 
 #[test]
@@ -222,5 +247,10 @@ pub fn test_split_media_with_overlap_larger_that_segment() {
     (68, 89),
     (78, 99),
   ];
-  assert_eq!(expected_segments, segments);
+  for index in 0..segments.len() {
+    assert_eq!(
+      expected_segments[index],
+      (segments[index].start, segments[index].end)
+    );
+  }
 }
