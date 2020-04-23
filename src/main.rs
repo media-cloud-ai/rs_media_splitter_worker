@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate serde_derive;
 
 use amqp_worker::worker::{Parameter, ParameterType};
 use amqp_worker::{
@@ -12,6 +10,7 @@ use lapin_futures::Channel;
 use semver::Version;
 
 mod message;
+mod split_policy;
 
 macro_rules! crate_version {
   () => {
