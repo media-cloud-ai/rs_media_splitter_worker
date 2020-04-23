@@ -96,11 +96,11 @@ fn get_media_duration_in_milliseconds(path: &str) -> Result<u64, String> {
   let mut format_context = FormatContext::new(path)?;
   format_context.open_input()?;
 
-  let duration_millisec = if let Some(duration) = format_context.get_duration() {
-    (duration * 1000.) as u64
-  } else {
-    0
-  };
+  let duration_millisec =
+    format_context
+      .get_duration()
+      .map(|duration| (duration * 1000.) as u64)
+      .unwrap_or_else(|| 0);
 
   format_context.close_input();
   Ok(duration_millisec)
