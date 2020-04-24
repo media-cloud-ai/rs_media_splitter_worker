@@ -6,7 +6,9 @@ use amqp_worker::{
 use lapin_futures::Channel;
 use stainless_ffmpeg::format_context::FormatContext;
 
+const DEFAULT_OUTPUT_PARAMETER_NAME: &'static str = "segments";
 const NUMBER_OF_SEGMENTS_PARAMETER: &'static str = "number_of_segments";
+const OUTPUT_PARAMETER_NAME_PARAMETER: &'static str = "output_parameter_name";
 const SEGMENT_DURATION_PARAMETER: &'static str = "segment_duration";
 const SEGMENT_OVERLAP_PARAMETER: &'static str = "segment_overlap";
 const SOURCE_PATH_PARAMETER: &'static str = "source_path";
@@ -36,6 +38,10 @@ pub fn process(
   let number_of_segments_split_policy = job
     .get_integer_parameter(NUMBER_OF_SEGMENTS_PARAMETER)
     .map(|number_of_segments| SplitPolicy::NumberOfSegments(number_of_segments as u64));
+
+  let output_parameter_name = job
+    .get_string_parameter(OUTPUT_PARAMETER_NAME_PARAMETER)
+    .unwrap_or(DEFAULT_OUTPUT_PARAMETER_NAME.to_string());
 
   let split_policy = segment_duration_split_policy
     .or(number_of_segments_split_policy)

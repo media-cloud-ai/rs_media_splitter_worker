@@ -60,6 +60,12 @@ These segment are defined by a duration in milliseconds, and they can overlap."#
         kind: vec![ParameterType::Integer],
         required: false,
       },
+      Parameter {
+        identifier: "output_parameter_name".to_string(),
+        label: "Name of the output array of segments parameter. Default: 'segments'".to_string(),
+        kind: vec![ParameterType::String],
+        required: false,
+      },
     ]
   }
 
