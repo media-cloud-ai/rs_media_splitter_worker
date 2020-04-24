@@ -1,7 +1,7 @@
 use crate::split_policy::SplitPolicy;
 use amqp_worker::{
   job::{Job, JobResult, JobStatus},
-  MessageError, ParametersContainer,
+  MessageError, Parameter, ParametersContainer,
 };
 use lapin_futures::Channel;
 use stainless_ffmpeg::format_context::FormatContext;
@@ -81,19 +81,14 @@ pub fn process(
       )
     })?;
 
-  let result = serde_json::to_string(&segments).map_err(|error| {
-    MessageError::ProcessingError(
-      job_result
-        .clone()
-        .with_status(JobStatus::Error)
-        .with_message(&format!("{}", error)),
-    )
-  })?;
-
   Ok(
     job_result
       .with_status(JobStatus::Completed)
-      .with_message(&result),
+      .with_parameters(&mut vec![Parameter::ArrayOfMediaSegmentsParam {
+        id: output_parameter_name,
+        value: Some(segments),
+        default: Some(vec![]),
+      }]),
   )
 }
 
