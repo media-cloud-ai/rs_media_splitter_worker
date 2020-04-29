@@ -1,4 +1,4 @@
-use amqp_worker::parameter::media_segment::MediaSegment;
+use mcai_worker_sdk::parameter::media_segment::MediaSegment;
 
 #[derive(Debug)]
 pub enum SplitPolicy {

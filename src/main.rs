@@ -1,13 +1,9 @@
-#[macro_use]
-extern crate log;
-
-use amqp_worker::worker::{Parameter, ParameterType};
-use amqp_worker::{
+use mcai_worker_sdk::{
   job::{Job, JobResult},
-  start_worker, MessageError, MessageEvent,
+  start_worker,
+  worker::{Parameter, ParameterType},
+  Channel, MessageError, MessageEvent, Version,
 };
-use lapin_futures::Channel;
-use semver::Version;
 
 mod message;
 mod split_policy;
@@ -37,7 +33,7 @@ These segment are defined by a duration in milliseconds, and they can overlap."#
   }
 
   fn get_version(&self) -> Version {
-    semver::Version::parse(crate_version!()).expect("unable to locate Package version")
+    Version::parse(crate_version!()).expect("unable to locate Package version")
   }
 
   fn get_parameters(&self) -> Vec<Parameter> {

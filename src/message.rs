@@ -1,8 +1,8 @@
-use amqp_worker::{
+use mcai_worker_sdk::{
+  debug,
   job::{Job, JobResult, JobStatus},
-  MessageError, Parameter, ParametersContainer,
+  warn, Channel, MessageError, Parameter, ParametersContainer,
 };
-use lapin_futures::Channel;
 use stainless_ffmpeg::format_context::FormatContext;
 
 use crate::split_policy::SplitPolicy;

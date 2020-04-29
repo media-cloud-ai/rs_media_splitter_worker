@@ -8,11 +8,5 @@ authors = [
 edition = "2018"
 
 [dependencies]
-amqp_worker = "0.9"
-lapin-futures = "0.28.4"
-log = "0.4"
-semver = "0.9"
+mcai_worker_sdk = "0.10.0"
 stainless_ffmpeg = { git = "https://github.com/nomalab/stainless-ffmpeg.git", branch = "master" }
-serde = "1.0.84"
-serde_derive = "1.0.84"
-serde_json = "1.0.34"
