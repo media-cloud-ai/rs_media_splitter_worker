@@ -41,11 +41,17 @@ impl SplitPolicy {
 
   fn get_parameters(self, media_duration: u64) -> (u64, u64) {
     match self {
-      SplitPolicy::SegmentDuration(segment_duration) => {
+      SplitPolicy::SegmentDuration(mut segment_duration) => {
+        if segment_duration == 0 {
+          segment_duration = media_duration;
+        }
         let number_of_segments = (media_duration as f64 / segment_duration as f64).ceil() as u64;
         (segment_duration, number_of_segments)
       }
       SplitPolicy::NumberOfSegments(mut number_of_segments) => {
+        if number_of_segments == 0 {
+          number_of_segments = 1;
+        }
         if number_of_segments >= media_duration {
           number_of_segments = media_duration;
         }
@@ -185,7 +191,17 @@ pub fn test_split_media_based_on_number_of_segments_equal_to_zero() {
   let result = SplitPolicy::NumberOfSegments(number_of_segments).split(media_duration, None);
   assert!(result.is_ok());
   let segments = result.unwrap();
-  assert_eq!(0, segments.len());
+  assert_eq!(1, segments.len());
+}
+
+#[test]
+pub fn test_split_media_based_on_segment_duration_equal_to_zero() {
+  let segment_duration = 0;
+  let media_duration = 100;
+  let result = SplitPolicy::SegmentDuration(segment_duration).split(media_duration, None);
+  assert!(result.is_ok());
+  let segments = result.unwrap();
+  assert_eq!(1, segments.len());
 }
 
 #[test]
