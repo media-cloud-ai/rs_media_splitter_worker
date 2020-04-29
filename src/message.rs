@@ -1,4 +1,3 @@
-use crate::split_policy::SplitPolicy;
 use amqp_worker::{
   job::{Job, JobResult, JobStatus},
   MessageError, Parameter, ParametersContainer,
@@ -6,12 +5,20 @@ use amqp_worker::{
 use lapin_futures::Channel;
 use stainless_ffmpeg::format_context::FormatContext;
 
-const DEFAULT_OUTPUT_PARAMETER_NAME: &'static str = "segments";
-const NUMBER_OF_SEGMENTS_PARAMETER: &'static str = "number_of_segments";
-const OUTPUT_PARAMETER_NAME_PARAMETER: &'static str = "output_parameter_name";
-const SEGMENT_DURATION_PARAMETER: &'static str = "segment_duration";
-const SEGMENT_OVERLAP_PARAMETER: &'static str = "segment_overlap";
-const SOURCE_PATH_PARAMETER: &'static str = "source_path";
+use crate::split_policy::SplitPolicy;
+
+pub const SOURCE_PATH_PARAMETER: &'static str = "source_path";
+
+pub const OUTPUT_PARAMETER_NAME_PARAMETER: &'static str = "output_parameter_name";
+pub const OUTPUT_PARAMETER_NAME_DEFAULT_VALUE: &'static str = "segments";
+
+pub const SEGMENTS_PARAMETER: &'static str = "segments";
+pub const SEGMENTS_UNIT_PARAMETER: &'static str = "segments_unit";
+pub const SEGMENTS_UNIT_VALUES: [&'static str; 3] = ["segments", "seconds", "milliseconds"];
+
+pub const OVERLAP_PARAMETER: &'static str = "overlap";
+pub const OVERLAP_UNIT_PARAMETER: &'static str = "overlap_unit";
+pub const OVERLAP_UNIT_VALUES: [&'static str; 2] = ["seconds", "milliseconds"];
 
 pub fn process(
   _channel: Option<&Channel>,
@@ -27,51 +34,84 @@ pub fn process(
           .with_status(JobStatus::Error)
           .with_message(&format!(
             "Invalid job message: missing expected '{}' parameter.",
-            SEGMENT_DURATION_PARAMETER
+            SOURCE_PATH_PARAMETER
           )),
       )
     })?;
 
-  let segment_duration_split_policy = job
-    .get_integer_parameter(SEGMENT_DURATION_PARAMETER)
-    .map(|segment_duration| SplitPolicy::SegmentDuration(segment_duration as u64));
-  let number_of_segments_split_policy = job
-    .get_integer_parameter(NUMBER_OF_SEGMENTS_PARAMETER)
-    .map(|number_of_segments| SplitPolicy::NumberOfSegments(number_of_segments as u64));
-
-  let output_parameter_name = job
-    .get_string_parameter(OUTPUT_PARAMETER_NAME_PARAMETER)
-    .unwrap_or(DEFAULT_OUTPUT_PARAMETER_NAME.to_string());
-
-  let split_policy = segment_duration_split_policy
-    .or(number_of_segments_split_policy)
+  let segments_parameter = job
+    .get_integer_parameter(SEGMENTS_PARAMETER)
     .ok_or_else(|| {
       MessageError::ProcessingError(
         job_result
           .clone()
           .with_status(JobStatus::Error)
           .with_message(&format!(
-            "Invalid job message: missing '{}' or '{}' expected parameter.",
-            SEGMENT_DURATION_PARAMETER, NUMBER_OF_SEGMENTS_PARAMETER
+            "Invalid job message: missing expected '{}' parameter.",
+            SEGMENTS_PARAMETER
           )),
       )
     })?;
 
-  let segment_overlap = job.get_integer_parameter(SEGMENT_OVERLAP_PARAMETER);
+  let split_policy = match job.get_string_parameter(SEGMENTS_UNIT_PARAMETER) {
+    Some(param) if param == SEGMENTS_UNIT_VALUES[0].to_string() => {
+      SplitPolicy::NumberOfSegments(segments_parameter as u64)
+    }
+    Some(param) if param == SEGMENTS_UNIT_VALUES[1].to_string() => {
+      SplitPolicy::SegmentDurationSeconds(segments_parameter as u64)
+    }
+    Some(param) if param == SEGMENTS_UNIT_VALUES[2].to_string() => {
+      SplitPolicy::SegmentDurationMilliSeconds(segments_parameter as u64)
+    }
+    other => {
+      warn!(
+        "Unspecified or invalid segments unit parameter: '{:?}'. Use default '{}' unit instead.",
+        other, SEGMENTS_UNIT_VALUES[0]
+      );
+      SplitPolicy::NumberOfSegments(segments_parameter as u64)
+    }
+  };
 
-  let media_duration = get_media_duration_in_milliseconds(&source_path).map_err(|msg| {
-    MessageError::ProcessingError(
-      job_result
-        .clone()
-        .with_status(JobStatus::Error)
-        .with_message(&msg),
-    )
-  })?;
+  let segment_overlap = if let Some(overlap) = job.get_integer_parameter(OVERLAP_PARAMETER) {
+    let milliseconds_overlap = match job.get_string_parameter(OVERLAP_UNIT_PARAMETER) {
+      Some(param) if param == OVERLAP_UNIT_VALUES[0].to_string() => Ok(overlap * 1000),
+      Some(param) if param == OVERLAP_UNIT_VALUES[1].to_string() => Ok(overlap),
+      other => Err(MessageError::ProcessingError(
+        job_result
+          .clone()
+          .with_status(JobStatus::Error)
+          .with_message(&format!(
+            "Invalid '{:?}' overlap unit. Possible values: {:?}",
+            other, OVERLAP_UNIT_VALUES
+          )),
+      )),
+    }?;
+    Some(milliseconds_overlap)
+  } else {
+    None
+  };
 
-  debug!("Input media duration: {} ms", media_duration);
+  let output_parameter_name = job
+    .get_string_parameter(OUTPUT_PARAMETER_NAME_PARAMETER)
+    .unwrap_or(OUTPUT_PARAMETER_NAME_DEFAULT_VALUE.to_string());
+
+  let media_duration_in_milliseconds =
+    get_media_duration_in_milliseconds(&source_path).map_err(|msg| {
+      MessageError::ProcessingError(
+        job_result
+          .clone()
+          .with_status(JobStatus::Error)
+          .with_message(&msg),
+      )
+    })?;
+
+  debug!(
+    "Input media duration: {} ms",
+    media_duration_in_milliseconds
+  );
 
   let segments = split_policy
-    .split(media_duration, segment_overlap)
+    .split(media_duration_in_milliseconds, segment_overlap)
     .map_err(|msg| {
       MessageError::ProcessingError(
         job_result

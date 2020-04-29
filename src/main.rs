@@ -43,26 +43,50 @@ These segment are defined by a duration in milliseconds, and they can overlap."#
   fn get_parameters(&self) -> Vec<Parameter> {
     vec![
       Parameter {
-        identifier: "source_path".to_string(),
-        label: "Source Path".to_string(),
+        identifier: message::SOURCE_PATH_PARAMETER.to_string(),
+        label: "Source path".to_string(),
         kind: vec![ParameterType::String],
         required: true,
       },
       Parameter {
-        identifier: "segment_duration".to_string(),
-        label: "Segment duration in milliseconds".to_string(),
+        identifier: message::SEGMENTS_PARAMETER.to_string(),
+        label: format!(
+          "Number of segments (default) or segments duration, depending on '{}' parameter",
+          message::SEGMENTS_UNIT_PARAMETER
+        ),
         kind: vec![ParameterType::Integer],
         required: true,
       },
       Parameter {
-        identifier: "segment_overlap".to_string(),
-        label: "Segment overlap duration in milliseconds".to_string(),
+        identifier: message::SEGMENTS_UNIT_PARAMETER.to_string(),
+        label: format!(
+          "Unit of the segments definition. Possible values: {:?}",
+          message::SEGMENTS_UNIT_VALUES
+        ),
+        kind: vec![ParameterType::String],
+        required: true,
+      },
+      Parameter {
+        identifier: message::OVERLAP_PARAMETER.to_string(),
+        label: "Segment overlap duration".to_string(),
         kind: vec![ParameterType::Integer],
         required: false,
       },
       Parameter {
-        identifier: "output_parameter_name".to_string(),
-        label: "Name of the output array of segments parameter. Default: 'segments'".to_string(),
+        identifier: message::OVERLAP_UNIT_PARAMETER.to_string(),
+        label: format!(
+          "Unit of the segments overlap. Possible values: {:?}",
+          message::OVERLAP_UNIT_VALUES
+        ),
+        kind: vec![ParameterType::String],
+        required: false,
+      },
+      Parameter {
+        identifier: message::OUTPUT_PARAMETER_NAME_PARAMETER.to_string(),
+        label: format!(
+          "Name of the output array of segments parameter. Default: '{}'",
+          message::OUTPUT_PARAMETER_NAME_DEFAULT_VALUE
+        ),
         kind: vec![ParameterType::String],
         required: false,
       },
