@@ -1,0 +1,12 @@
+[package]
+name = "media_splitter_worker"
+version = "0.0.1"
+authors = [
+  "Valentin Noel <valentin.noel@media-io.com>",
+  "Marc-Antoine Arnaud <maarnaud@media-io.com>"
+]
+edition = "2018"
+
+[dependencies]
+mcai_worker_sdk = "0.10.1"
+stainless_ffmpeg = { git = "https://github.com/nomalab/stainless-ffmpeg.git", branch = "master" }
