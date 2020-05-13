@@ -1,9 +1,7 @@
-use mcai_worker_sdk::{
-  job::{Job, JobResult},
-  start_worker,
-  worker::{Parameter, ParameterType},
-  Channel, MessageError, MessageEvent, Version,
-};
+use mcai_worker_sdk::job::{Job, JobResult};
+use mcai_worker_sdk::start_worker;
+use mcai_worker_sdk::worker::{Parameter, ParameterType};
+use mcai_worker_sdk::{McaiChannel, MessageError, MessageEvent, Version};
 
 mod message;
 mod split_policy;
@@ -91,7 +89,7 @@ These segment are defined by a duration in milliseconds, and they can overlap."#
 
   fn process(
     &self,
-    channel: Option<&Channel>,
+    channel: Option<McaiChannel>,
     job: &Job,
     job_result: JobResult,
   ) -> Result<JobResult, MessageError> {

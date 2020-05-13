@@ -1,8 +1,6 @@
-use mcai_worker_sdk::{
-  debug,
-  job::{Job, JobResult, JobStatus},
-  warn, Channel, MessageError, Parameter, ParametersContainer,
-};
+use mcai_worker_sdk::job::{Job, JobResult, JobStatus};
+use mcai_worker_sdk::{debug, warn};
+use mcai_worker_sdk::{McaiChannel, MessageError, Parameter, ParametersContainer};
 use stainless_ffmpeg::format_context::FormatContext;
 
 use crate::split_policy::SplitPolicy;
@@ -21,7 +19,7 @@ pub const OVERLAP_UNIT_PARAMETER: &'static str = "overlap_unit";
 pub const OVERLAP_UNIT_VALUES: [&'static str; 2] = ["seconds", "milliseconds"];
 
 pub fn process(
-  _channel: Option<&Channel>,
+  _channel: Option<McaiChannel>,
   job: &Job,
   job_result: JobResult,
 ) -> Result<JobResult, MessageError> {
