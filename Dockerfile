@@ -24,7 +24,7 @@ RUN apt-get update && \
     cargo install --path .
 
 FROM ubuntu:focal
-COPY --from=builder /src/media_splitter_worker /usr/bin
+COPY --from=builder /root/.cargo/bin/media_splitter_worker /usr/bin
 
 RUN apt update && \
     apt install -y \
