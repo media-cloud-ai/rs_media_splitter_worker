@@ -1,3 +1,4 @@
+
 use mcai_worker_sdk::{
   debug,
   job::{JobResult, JobStatus},
@@ -36,6 +37,7 @@ pub fn process(
   } else {
     None
   };
+
 
   let output_parameter_name = parameters
     .output_parameter_name

@@ -9,6 +9,9 @@ rust:
   - nightly
 
 matrix:
+
+  allow_failures:
+    - rust: nightly
   include:
     # Rustfmt
     - rust: stable
@@ -31,6 +34,7 @@ matrix:
       env:
         - CHECK_SYNTAX=TRUE
 
+
     # Test coverage
     - rust: nightly
       install:
@@ -40,24 +44,22 @@ matrix:
       env:
         - COVERAGE_CHECK=TRUE
 
-
 script:
   - cargo test
 
 cache:
   cargo: true
 
-before_cache:
-  # Travis can't cache files that are not readable by "others"
-  - chmod -R a+r $HOME/.cargo
-
 before_script:
   - sudo add-apt-repository ppa:jonathonf/ffmpeg-4 -y
   - sudo apt-get update -q
   - sudo apt-get install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libavdevice-dev libavfilter-dev libavresample-dev libpostproc-dev libswscale-dev -y
 
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo
+
 addons:
   apt:
     packages:
       - libssl-dev  # Required for tarpaulin
-      - gcc
