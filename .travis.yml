@@ -2,11 +2,14 @@ language: rust
 
 rust:
   - 1.43.0
+  - 1.44.1
+  - 1.45.1
   - stable
   - beta
   - nightly
 
 matrix:
+
   allow_failures:
     - rust: nightly
   include:
@@ -31,10 +34,9 @@ matrix:
       env:
         - CHECK_SYNTAX=TRUE
 
-    # Test coverage (with Tarpaulin)
-    - rust: stable
-      # To avoid "Error: EPERM: operation not permitted" error (see https://github.com/valery-barysok/session-file-store/issues/58)
-      sudo: true
+
+    # Test coverage
+    - rust: nightly
       install:
         - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
       script:
