@@ -1585,8 +1585,8 @@ dependencies = [
 
 [[package]]
 name = "stainless_ffmpeg"
-version = "0.2.2"
-source = "git+https://github.com/nomalab/stainless-ffmpeg.git#3047c052e7252b4188eae22758aca544af377347"
+version = "0.2.3"
+source = "git+https://github.com/nomalab/stainless-ffmpeg.git#2254da7b7b3760c41f708372fa444c5a9efd2321"
 dependencies = [
  "libc",
  "log",
