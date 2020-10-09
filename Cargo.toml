@@ -1,6 +1,6 @@
 [package]
 name = "media_splitter_worker"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
   "Valentin Noel <valentin.noel@media-io.com>",
   "Marc-Antoine Arnaud <maarnaud@media-io.com>"
