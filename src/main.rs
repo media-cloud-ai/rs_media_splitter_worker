@@ -39,19 +39,18 @@ pub struct MediaSplitterParameters {
   /// Limit the minimal duration of a segment.  
   /// It overload the `segments` constraint.  
   min_segment_duration: Option<Duration>,
-  /// Process only the part begenning after that entry point.
+  /// Process only the part beginning after that entry point.
   entry_point: Option<Duration>,
   /// It will represent the duration of the content processed.
   duration: Option<Duration>,
   /// Overload the duration field.  
-  /// Usefull to limit duration to a maximum value.
+  /// Useful to limit duration to a maximum value.
   max_duration: Option<Duration>,
-  /// Specify the position of the selected duration.
-  /// By default it took from the start.
-  /// It can also be set to end.
+  /// Specify the position from which the selected duration is reckoned.  
+  /// By default, it is set from the start of the file, but it can also be set from the end.
   duration_position: DurationPosition,
   /// It will add duration to overlap segments.  
-  /// This means some data will be process twice time.  
+  /// This means some data will be process twice.  
   overlap: Option<Duration>,
 }
 
