@@ -1,458 +1,277 @@
-use mcai_worker_sdk::parameter::media_segment::MediaSegment;
+use crate::MediaSplitterParameters;
+use mcai_worker_sdk::{info, parameter::media_segment::MediaSegment};
+use std::cmp::min;
 
 #[derive(Debug)]
-pub enum SplitPolicy {
-  SegmentDurationSeconds(u64),
-  SegmentDurationMilliSeconds(u64),
-  NumberOfSegments(u64),
+pub struct SplitPolicy {
+  number_of_segments: u64,
+  min_segment_duration: Option<u64>,
+}
+
+impl Default for SplitPolicy {
+  fn default() -> Self {
+    SplitPolicy {
+      number_of_segments: 1,
+      min_segment_duration: None,
+    }
+  }
 }
 
 impl SplitPolicy {
+  pub fn new(parameters: &MediaSplitterParameters, media_duration: u64) -> Self {
+    let min_segment_duration: Option<u64> = parameters
+      .min_segment_duration
+      .clone()
+      .map(|duration| duration.to_millis(media_duration));
+
+    SplitPolicy {
+      number_of_segments: parameters.number_of_segments,
+      min_segment_duration,
+    }
+  }
+
   pub fn split(
     self,
     media_duration: u64,
-    segment_overlap: Option<i64>,
-  ) -> Result<Vec<MediaSegment>, String> {
-    let (segment_duration, number_of_segments) = self.get_parameters(media_duration);
+    start_offset: u64,
+    segment_overlap: Option<u64>,
+  ) -> Vec<MediaSegment> {
+    let mut number_of_segments = self.number_of_segments;
 
-    let overlap = segment_overlap.unwrap_or(0) as u64;
+    if let Some(min_segment_duration) = &self.min_segment_duration {
+      if min_segment_duration > &0 {
+        let max_number_of_segments = media_duration / min_segment_duration;
+        number_of_segments = min(number_of_segments, max_number_of_segments);
+      }
+    }
+
+    number_of_segments = min(number_of_segments, media_duration);
+
+    info!("Number of segments: {}", number_of_segments);
+
+    let overlap = segment_overlap.unwrap_or(0);
 
     let mut segments = Vec::with_capacity(number_of_segments as usize);
     let mut next_start = 0;
     let mut next_end = 0;
 
+    let segment_duration = if media_duration == number_of_segments {
+      0
+    } else {
+      media_duration / number_of_segments
+    };
+
     for _ in 0..number_of_segments {
-      next_end += segment_duration as u64 - 1;
+      next_end += segment_duration as u64;
       if next_end >= media_duration {
         next_end = media_duration - 1;
       }
 
-      segments.push(MediaSegment::new(next_start, next_end));
+      segments.push(MediaSegment::new(
+        next_start + start_offset,
+        next_end + start_offset,
+      ));
 
       next_end += 1;
-      if next_end < overlap {
-        next_start = 0;
+
+      if next_end >= media_duration {
+        break;
+      }
+
+      next_start = if next_end < overlap {
+        0
       } else {
-        next_start = next_end - overlap;
-      }
+        next_end - overlap
+      };
     }
 
-    Ok(segments)
-  }
-
-  fn get_parameters(self, media_duration: u64) -> (u64, u64) {
-    match self {
-      SplitPolicy::SegmentDurationSeconds(mut segment_duration) => {
-        if segment_duration == 0 {
-          segment_duration = media_duration;
-        } else {
-          // convert to milliseconds
-          segment_duration *= 1000;
-        }
-        let number_of_segments = (media_duration as f64 / segment_duration as f64).ceil() as u64;
-        (segment_duration, number_of_segments)
-      }
-      SplitPolicy::SegmentDurationMilliSeconds(mut segment_duration) => {
-        if segment_duration == 0 {
-          segment_duration = media_duration;
-        }
-        let number_of_segments = (media_duration as f64 / segment_duration as f64).ceil() as u64;
-        (segment_duration, number_of_segments)
-      }
-      SplitPolicy::NumberOfSegments(mut number_of_segments) => {
-        if number_of_segments == 0 {
-          number_of_segments = 1;
-        }
-        if number_of_segments >= media_duration {
-          number_of_segments = media_duration;
-        }
-        let segment_duration = (media_duration as f64 / number_of_segments as f64).ceil() as u64;
-        (segment_duration, number_of_segments)
-      }
-    }
+    segments
   }
 }
 
 #[test]
-pub fn test_split_media_range_based_on_segment_duration_in_milliseconds() {
-  let segment_duration = 100;
+pub fn empty_parameters() {
   let media_duration = 100;
-  let result =
-    SplitPolicy::SegmentDurationMilliSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
+  let split_policy = SplitPolicy::default();
+
+  let segments = split_policy.split(media_duration, 0, None);
+
   assert_eq!(1, segments.len());
-  assert_eq!(segment_duration, segments[0].end - segments[0].start + 1);
+  assert_eq!(segments, vec![MediaSegment { start: 0, end: 99 }]);
 }
 
 #[test]
-pub fn test_split_media_range_based_on_segment_duration_in_seconds() {
-  let segment_duration = 10;
-  let media_duration = 10000;
-  let result = SplitPolicy::SegmentDurationSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(1, segments.len());
+pub fn segments() {
+  let media_duration = 100;
+  let split_policy = SplitPolicy {
+    number_of_segments: 3,
+    min_segment_duration: None,
+  };
+
+  let segments = split_policy.split(media_duration, 0, None);
+
+  assert_eq!(3, segments.len());
   assert_eq!(
-    segment_duration * 1000,
-    segments[0].end - segments[0].start + 1
+    segments,
+    vec![
+      MediaSegment { start: 0, end: 33 },
+      MediaSegment { start: 34, end: 67 },
+      MediaSegment { start: 68, end: 99 }
+    ]
   );
 }
 
 #[test]
-pub fn test_split_media_range_based_on_number_of_segments() {
-  let number_of_segments = 1;
+pub fn number_of_segments_upper_than_duration() {
+  let media_duration = 10;
+  let split_policy = SplitPolicy {
+    number_of_segments: 100,
+    min_segment_duration: None,
+  };
+
+  let segments = split_policy.split(media_duration, 0, None);
+
+  assert_eq!(10, segments.len());
+  assert_eq!(
+    segments,
+    vec![
+      MediaSegment { start: 0, end: 0 },
+      MediaSegment { start: 1, end: 1 },
+      MediaSegment { start: 2, end: 2 },
+      MediaSegment { start: 3, end: 3 },
+      MediaSegment { start: 4, end: 4 },
+      MediaSegment { start: 5, end: 5 },
+      MediaSegment { start: 6, end: 6 },
+      MediaSegment { start: 7, end: 7 },
+      MediaSegment { start: 8, end: 8 },
+      MediaSegment { start: 9, end: 9 },
+    ]
+  );
+
+  let media_duration = 10;
+  let split_policy = SplitPolicy {
+    number_of_segments: 10,
+    min_segment_duration: None,
+  };
+
+  let segments = split_policy.split(media_duration, 0, None);
+
+  assert_eq!(10, segments.len());
+  assert_eq!(
+    segments,
+    vec![
+      MediaSegment { start: 0, end: 0 },
+      MediaSegment { start: 1, end: 1 },
+      MediaSegment { start: 2, end: 2 },
+      MediaSegment { start: 3, end: 3 },
+      MediaSegment { start: 4, end: 4 },
+      MediaSegment { start: 5, end: 5 },
+      MediaSegment { start: 6, end: 6 },
+      MediaSegment { start: 7, end: 7 },
+      MediaSegment { start: 8, end: 8 },
+      MediaSegment { start: 9, end: 9 },
+    ]
+  );
+
+  let media_duration = 11;
+  let split_policy = SplitPolicy {
+    number_of_segments: 10,
+    min_segment_duration: None,
+  };
+
+  let segments = split_policy.split(media_duration, 0, None);
+
+  assert_eq!(6, segments.len());
+  assert_eq!(
+    segments,
+    vec![
+      MediaSegment { start: 0, end: 1 },
+      MediaSegment { start: 2, end: 3 },
+      MediaSegment { start: 4, end: 5 },
+      MediaSegment { start: 6, end: 7 },
+      MediaSegment { start: 8, end: 9 },
+      MediaSegment { start: 10, end: 10 },
+    ]
+  );
+}
+
+#[test]
+fn min_segment_duration() {
   let media_duration = 100;
-  let result = SplitPolicy::NumberOfSegments(number_of_segments).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(number_of_segments as usize, segments.len());
-  assert_eq!(media_duration, segments[0].end - segments[0].start + 1);
+  let split_policy = SplitPolicy {
+    number_of_segments: 1,
+    min_segment_duration: Some(40),
+  };
+
+  let segments = split_policy.split(media_duration, 0, None);
+
+  assert_eq!(1, segments.len());
+  assert_eq!(segments, vec![MediaSegment { start: 0, end: 99 }]);
 }
 
 #[test]
-pub fn test_split_media_based_on_segment_duration_in_milliseconds() {
-  let segment_duration = 10;
-  let media_duration = 98;
-  let result =
-    SplitPolicy::SegmentDurationMilliSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(10, segments.len());
-  let expected_segments = vec![
-    (0, 9),
-    (10, 19),
-    (20, 29),
-    (30, 39),
-    (40, 49),
-    (50, 59),
-    (60, 69),
-    (70, 79),
-    (80, 89),
-    (90, media_duration - 1),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_seconds() {
-  let segment_duration = 1;
-  let media_duration = 10000;
-  let result = SplitPolicy::SegmentDurationSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(10, segments.len());
-  let expected_segments = vec![
-    (0, 999),
-    (1000, 1999),
-    (2000, 2999),
-    (3000, 3999),
-    (4000, 4999),
-    (5000, 5999),
-    (6000, 6999),
-    (7000, 7999),
-    (8000, 8999),
-    (9000, media_duration - 1),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_number_of_segments() {
-  let number_of_segments = 10;
-  let media_duration = 98;
-  let result = SplitPolicy::NumberOfSegments(number_of_segments).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(number_of_segments as usize, segments.len());
-  let expected_segments = vec![
-    (0, 9),
-    (10, 19),
-    (20, 29),
-    (30, 39),
-    (40, 49),
-    (50, 59),
-    (60, 69),
-    (70, 79),
-    (80, 89),
-    (90, media_duration - 1),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_milliseconds_larger_than_media_duration() {
-  let segment_duration = 200;
+fn min_segment_duration_with_segments() {
   let media_duration = 100;
-  let result =
-    SplitPolicy::SegmentDurationMilliSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(1, segments.len());
-  let expected_segments = vec![(0, media_duration - 1)];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
+  let split_policy = SplitPolicy {
+    number_of_segments: 5,
+    min_segment_duration: Some(10),
+  };
+
+  let segments = split_policy.split(media_duration, 0, None);
+
+  assert_eq!(5, segments.len());
+  assert_eq!(
+    segments,
+    vec![
+      MediaSegment { start: 0, end: 20 },
+      MediaSegment { start: 21, end: 41 },
+      MediaSegment { start: 42, end: 62 },
+      MediaSegment { start: 63, end: 83 },
+      MediaSegment { start: 84, end: 99 }
+    ]
+  );
 }
 
 #[test]
-pub fn test_split_media_based_on_segment_duration_in_seconds_larger_than_media_duration() {
-  let segment_duration = 2000;
-  let media_duration = 1000;
-  let result = SplitPolicy::SegmentDurationSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(1, segments.len());
-  let expected_segments = vec![(0, media_duration - 1)];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_number_of_segments_larger_than_media_duration() {
-  let number_of_segments = 200;
+fn overlap() {
   let media_duration = 100;
-  let result = SplitPolicy::NumberOfSegments(number_of_segments).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(media_duration as usize, segments.len());
-  for index in 0..segments.len() {
-    assert_eq!(
-      (index as u64, index as u64),
-      (segments[index].start, segments[index].end)
-    );
-  }
+  let split_policy = SplitPolicy {
+    number_of_segments: 5,
+    min_segment_duration: None,
+  };
+
+  let segments = split_policy.split(media_duration, 0, Some(5));
+
+  assert_eq!(5, segments.len());
+  assert_eq!(
+    segments,
+    vec![
+      MediaSegment { start: 0, end: 20 },
+      MediaSegment { start: 16, end: 41 },
+      MediaSegment { start: 37, end: 62 },
+      MediaSegment { start: 58, end: 83 },
+      MediaSegment { start: 79, end: 99 }
+    ]
+  );
 }
 
 #[test]
-pub fn test_split_media_based_on_number_of_segments_equal_to_zero() {
-  let number_of_segments = 0;
-  let media_duration = 100;
-  let result = SplitPolicy::NumberOfSegments(number_of_segments).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(1, segments.len());
-}
+fn offset() {
+  let media_duration = 70;
+  let split_policy = SplitPolicy {
+    number_of_segments: 3,
+    min_segment_duration: None,
+  };
 
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_milliseconds_equal_to_zero() {
-  let segment_duration = 0;
-  let media_duration = 100;
-  let result =
-    SplitPolicy::SegmentDurationMilliSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(1, segments.len());
-  assert_eq!(media_duration, segments[0].end - segments[0].start + 1);
-}
+  let segments = split_policy.split(media_duration, 30, None);
 
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_seconds_equal_to_zero() {
-  let segment_duration = 0;
-  let media_duration = 10000;
-  let result = SplitPolicy::SegmentDurationSeconds(segment_duration).split(media_duration, None);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(1, segments.len());
-  assert_eq!(media_duration, segments[0].end - segments[0].start + 1);
-}
-
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_milliseconds_with_overlap() {
-  let segment_duration = 10;
-  let segment_overlap = Some(4);
-  let media_duration = 95;
-  let result = SplitPolicy::SegmentDurationMilliSeconds(segment_duration)
-    .split(media_duration, segment_overlap);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(10, segments.len());
-  let expected_segments = vec![
-    (0, 9),
-    (6, 19),
-    (16, 29),
-    (26, 39),
-    (36, 49),
-    (46, 59),
-    (56, 69),
-    (66, 79),
-    (76, 89),
-    (86, media_duration - 1),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_seconds_with_overlap() {
-  let segment_duration = 1;
-  let segment_overlap = Some(400);
-  let media_duration = 9500;
-  let result =
-    SplitPolicy::SegmentDurationSeconds(segment_duration).split(media_duration, segment_overlap);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(10, segments.len());
-  let expected_segments = vec![
-    (0, 999),
-    (600, 1999),
-    (1600, 2999),
-    (2600, 3999),
-    (3600, 4999),
-    (4600, 5999),
-    (5600, 6999),
-    (6600, 7999),
-    (7600, 8999),
-    (8600, media_duration - 1),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_number_of_segments_with_overlap() {
-  let number_of_segments = 10;
-  let segment_overlap = Some(4);
-  let media_duration = 95;
-  let result =
-    SplitPolicy::NumberOfSegments(number_of_segments).split(media_duration, segment_overlap);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(number_of_segments as usize, segments.len());
-  let expected_segments = vec![
-    (0, 9),
-    (6, 19),
-    (16, 29),
-    (26, 39),
-    (36, 49),
-    (46, 59),
-    (56, 69),
-    (66, 79),
-    (76, 89),
-    (86, media_duration - 1),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_milliseconds_with_overlap_larger_that_segment()
-{
-  let segment_duration = 10;
-  let segment_overlap = Some(12);
-  let result =
-    SplitPolicy::SegmentDurationMilliSeconds(segment_duration).split(100, segment_overlap);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(10, segments.len());
-  let expected_segments = vec![
-    (0, 9),
-    (0, 19),
-    (8, 29),
-    (18, 39),
-    (28, 49),
-    (38, 59),
-    (48, 69),
-    (58, 79),
-    (68, 89),
-    (78, 99),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_segment_duration_in_seconds_with_overlap_larger_that_segment() {
-  let segment_duration = 10;
-  let segment_overlap = Some(12000);
-  let media_duration = 100000;
-  let result =
-    SplitPolicy::SegmentDurationSeconds(segment_duration).split(media_duration, segment_overlap);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(10, segments.len());
-  let expected_segments = vec![
-    (0, 9999),
-    (0, 19999),
-    (8000, 29999),
-    (18000, 39999),
-    (28000, 49999),
-    (38000, 59999),
-    (48000, 69999),
-    (58000, 79999),
-    (68000, 89999),
-    (78000, 99999),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
-}
-
-#[test]
-pub fn test_split_media_based_on_number_of_segments_with_overlap_larger_that_segment() {
-  let number_of_segments = 10;
-  let segment_overlap = Some(12);
-  let result = SplitPolicy::NumberOfSegments(number_of_segments).split(100, segment_overlap);
-  assert!(result.is_ok());
-  let segments = result.unwrap();
-  assert_eq!(number_of_segments as usize, segments.len());
-  let expected_segments = vec![
-    (0, 9),
-    (0, 19),
-    (8, 29),
-    (18, 39),
-    (28, 49),
-    (38, 59),
-    (48, 69),
-    (58, 79),
-    (68, 89),
-    (78, 99),
-  ];
-  for index in 0..segments.len() {
-    assert_eq!(
-      expected_segments[index],
-      (segments[index].start, segments[index].end)
-    );
-  }
+  assert_eq!(3, segments.len());
+  assert_eq!(
+    segments,
+    vec![
+      MediaSegment { start: 30, end: 53 },
+      MediaSegment { start: 54, end: 77 },
+      MediaSegment { start: 78, end: 99 }
+    ]
+  );
 }

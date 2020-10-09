@@ -1,12 +1,14 @@
 #[macro_use]
 extern crate serde_derive;
 
+mod duration;
+mod message;
+mod split_policy;
+
+use duration::{Duration, DurationPosition};
 use mcai_worker_sdk::{
   job::JobResult, start_worker, JsonSchema, McaiChannel, MessageError, MessageEvent, Version,
 };
-
-mod message;
-mod split_policy;
 
 macro_rules! crate_version {
   () => {
@@ -17,32 +19,39 @@ macro_rules! crate_version {
 #[derive(Debug, Default)]
 struct MediaSplitterEvent {}
 
-#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
-pub enum SegmentUnit {
-  #[serde(rename = "milliseconds")]
-  Milliseconds,
-  #[serde(rename = "seconds")]
-  Seconds,
-  #[serde(rename = "segments")]
-  Segments,
+fn default_output_parameter_name() -> String {
+  "segments".to_string()
 }
 
-#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
-pub enum OverlapUnit {
-  #[serde(rename = "milliseconds")]
-  Milliseconds,
-  #[serde(rename = "seconds")]
-  Seconds,
+fn default_segments() -> u64 {
+  1
 }
 
-#[derive(Clone, Debug, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Deserialize, JsonSchema)]
 pub struct MediaSplitterParameters {
   source_path: String,
-  segments: u64,
-  segments_unit: SegmentUnit,
-  output_parameter_name: Option<String>,
-  overlap: Option<i64>,
-  overlap_unit: Option<OverlapUnit>,
+  #[serde(default = "default_output_parameter_name")]
+  output_parameter_name: String,
+
+  /// Number of parts to split into
+  #[serde(default = "default_segments")]
+  number_of_segments: u64,
+  /// Limit the minimal duration of a segment.  
+  /// It overload the `segments` constraint.  
+  min_segment_duration: Option<Duration>,
+  /// Process only the part beginning after that entry point.
+  entry_point: Option<Duration>,
+  /// It will represent the duration of the content processed.
+  duration: Option<Duration>,
+  /// Overload the duration field.  
+  /// Useful to limit duration to a maximum value.
+  max_duration: Option<Duration>,
+  /// Specify the position from which the selected duration is reckoned.  
+  /// By default, it is set from the start of the file, but it can also be set from the end.
+  duration_position: DurationPosition,
+  /// It will add duration to overlap segments.  
+  /// This means some data will be process twice.  
+  overlap: Option<Duration>,
 }
 
 impl MessageEvent<MediaSplitterParameters> for MediaSplitterEvent {
@@ -70,7 +79,7 @@ These segment are defined by a duration in milliseconds, and they can overlap."#
     parameters: MediaSplitterParameters,
     job_result: JobResult,
   ) -> Result<JobResult, MessageError> {
-    message::process(channel, parameters, job_result)
+    message::process(channel, &parameters, job_result)
   }
 }
 
