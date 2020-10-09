@@ -1,0 +1,16 @@
+{
+	"job_id": 1234,
+	"parameters": [
+		{
+			"id": "source_path",
+			"type": "string",
+			"store": "environment",
+			"value": "SOURCE_PATH"
+		},
+		{
+			"id": "number_of_segments",
+			"type": "integer",
+			"value": 100
+		}
+	]
+}

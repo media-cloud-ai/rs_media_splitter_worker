@@ -1,0 +1,32 @@
+{
+	"job_id": 1234,
+	"parameters": [
+		{
+			"id": "source_path",
+			"type": "string",
+			"store": "environment",
+			"value": "SOURCE_PATH"
+		},
+		{
+			"id": "duration",
+			"type": "extended",
+			"value": {
+				"value": 10,
+				"unit": "percent"
+			}
+		},
+		{
+			"id": "max_duration",
+			"type": "extended",
+			"value": {
+				"value": 5,
+				"unit": "second"
+			}
+		},
+		{
+			"id": "duration_position",
+			"type": "string",
+			"value": "end"
+		}
+	]
+}
