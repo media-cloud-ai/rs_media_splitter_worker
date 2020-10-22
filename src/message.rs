@@ -98,7 +98,7 @@ fn default() {
     segments,
     [MediaSegment {
       start: 0,
-      end: 9999
+      end: 10000
     }]
   );
 }
@@ -119,7 +119,7 @@ fn duration() {
   };
 
   let segments = generate_segments(&parameters, 10 * 1000).unwrap();
-  assert_eq!(segments, vec![MediaSegment { start: 0, end: 499 }]);
+  assert_eq!(segments, vec![MediaSegment { start: 0, end: 500 }]);
 }
 
 #[test]
@@ -142,7 +142,7 @@ fn max_duration() {
     segments,
     vec![MediaSegment {
       start: 0,
-      end: 4999
+      end: 5000
     }]
   );
 }
@@ -172,8 +172,8 @@ fn duration_max_duration() {
     vec![
       MediaSegment { start: 0, end: 250 },
       MediaSegment {
-        start: 251,
-        end: 499
+        start: 250,
+        end: 500
       }
     ]
   );
@@ -202,8 +202,8 @@ fn duration_max_duration() {
         end: 2500
       },
       MediaSegment {
-        start: 2501,
-        end: 4999
+        start: 2500,
+        end: 5000
       }
     ]
   );
@@ -238,8 +238,8 @@ fn duration_at_the_end() {
         end: 9750
       },
       MediaSegment {
-        start: 9751,
-        end: 9999
+        start: 9750,
+        end: 10000
       }
     ]
   );
@@ -268,8 +268,8 @@ fn duration_at_the_end() {
         end: 2500
       },
       MediaSegment {
-        start: 2501,
-        end: 4999
+        start: 2500,
+        end: 5000
       }
     ]
   );

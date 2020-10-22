@@ -55,24 +55,24 @@ impl SplitPolicy {
     let mut next_start = 0;
     let mut next_end = 0;
 
-    let segment_duration = if media_duration == number_of_segments {
-      0
-    } else {
-      media_duration / number_of_segments
-    };
+    for segment_index in 0..number_of_segments {
+      let next_segment_duration = if media_duration - next_end == number_of_segments {
+        1
+      } else {
+        let remaining_duration = media_duration - next_end;
+        let remaining_segments = number_of_segments - segment_index;
+        (remaining_duration as f64 / remaining_segments as f64) as u64
+      };
 
-    for _ in 0..number_of_segments {
-      next_end += segment_duration as u64;
+      next_end += next_segment_duration as u64;
       if next_end >= media_duration {
-        next_end = media_duration - 1;
+        next_end = media_duration;
       }
 
       segments.push(MediaSegment::new(
         next_start + start_offset,
         next_end + start_offset,
       ));
-
-      next_end += 1;
 
       if next_end >= media_duration {
         break;
@@ -97,7 +97,7 @@ pub fn empty_parameters() {
   let segments = split_policy.split(media_duration, 0, None);
 
   assert_eq!(1, segments.len());
-  assert_eq!(segments, vec![MediaSegment { start: 0, end: 99 }]);
+  assert_eq!(segments, vec![MediaSegment { start: 0, end: 100 }]);
 }
 
 #[test]
@@ -115,8 +115,11 @@ pub fn segments() {
     segments,
     vec![
       MediaSegment { start: 0, end: 33 },
-      MediaSegment { start: 34, end: 67 },
-      MediaSegment { start: 68, end: 99 }
+      MediaSegment { start: 33, end: 66 },
+      MediaSegment {
+        start: 66,
+        end: 100
+      }
     ]
   );
 }
@@ -135,16 +138,16 @@ pub fn number_of_segments_upper_than_duration() {
   assert_eq!(
     segments,
     vec![
-      MediaSegment { start: 0, end: 0 },
-      MediaSegment { start: 1, end: 1 },
-      MediaSegment { start: 2, end: 2 },
-      MediaSegment { start: 3, end: 3 },
-      MediaSegment { start: 4, end: 4 },
-      MediaSegment { start: 5, end: 5 },
-      MediaSegment { start: 6, end: 6 },
-      MediaSegment { start: 7, end: 7 },
-      MediaSegment { start: 8, end: 8 },
-      MediaSegment { start: 9, end: 9 },
+      MediaSegment { start: 0, end: 1 },
+      MediaSegment { start: 1, end: 2 },
+      MediaSegment { start: 2, end: 3 },
+      MediaSegment { start: 3, end: 4 },
+      MediaSegment { start: 4, end: 5 },
+      MediaSegment { start: 5, end: 6 },
+      MediaSegment { start: 6, end: 7 },
+      MediaSegment { start: 7, end: 8 },
+      MediaSegment { start: 8, end: 9 },
+      MediaSegment { start: 9, end: 10 },
     ]
   );
 
@@ -160,22 +163,22 @@ pub fn number_of_segments_upper_than_duration() {
   assert_eq!(
     segments,
     vec![
-      MediaSegment { start: 0, end: 0 },
-      MediaSegment { start: 1, end: 1 },
-      MediaSegment { start: 2, end: 2 },
-      MediaSegment { start: 3, end: 3 },
-      MediaSegment { start: 4, end: 4 },
-      MediaSegment { start: 5, end: 5 },
-      MediaSegment { start: 6, end: 6 },
-      MediaSegment { start: 7, end: 7 },
-      MediaSegment { start: 8, end: 8 },
-      MediaSegment { start: 9, end: 9 },
+      MediaSegment { start: 0, end: 1 },
+      MediaSegment { start: 1, end: 2 },
+      MediaSegment { start: 2, end: 3 },
+      MediaSegment { start: 3, end: 4 },
+      MediaSegment { start: 4, end: 5 },
+      MediaSegment { start: 5, end: 6 },
+      MediaSegment { start: 6, end: 7 },
+      MediaSegment { start: 7, end: 8 },
+      MediaSegment { start: 8, end: 9 },
+      MediaSegment { start: 9, end: 10 },
     ]
   );
 
   let media_duration = 11;
   let split_policy = SplitPolicy {
-    number_of_segments: 10,
+    number_of_segments: 6,
     min_segment_duration: None,
   };
 
@@ -186,11 +189,11 @@ pub fn number_of_segments_upper_than_duration() {
     segments,
     vec![
       MediaSegment { start: 0, end: 1 },
-      MediaSegment { start: 2, end: 3 },
-      MediaSegment { start: 4, end: 5 },
-      MediaSegment { start: 6, end: 7 },
-      MediaSegment { start: 8, end: 9 },
-      MediaSegment { start: 10, end: 10 },
+      MediaSegment { start: 1, end: 3 },
+      MediaSegment { start: 3, end: 5 },
+      MediaSegment { start: 5, end: 6 },
+      MediaSegment { start: 6, end: 8 },
+      MediaSegment { start: 8, end: 11 },
     ]
   );
 }
@@ -206,7 +209,7 @@ fn min_segment_duration() {
   let segments = split_policy.split(media_duration, 0, None);
 
   assert_eq!(1, segments.len());
-  assert_eq!(segments, vec![MediaSegment { start: 0, end: 99 }]);
+  assert_eq!(segments, vec![MediaSegment { start: 0, end: 100 }]);
 }
 
 #[test]
@@ -224,10 +227,13 @@ fn min_segment_duration_with_segments() {
     segments,
     vec![
       MediaSegment { start: 0, end: 20 },
-      MediaSegment { start: 21, end: 41 },
-      MediaSegment { start: 42, end: 62 },
-      MediaSegment { start: 63, end: 83 },
-      MediaSegment { start: 84, end: 99 }
+      MediaSegment { start: 20, end: 40 },
+      MediaSegment { start: 40, end: 60 },
+      MediaSegment { start: 60, end: 80 },
+      MediaSegment {
+        start: 80,
+        end: 100
+      }
     ]
   );
 }
@@ -247,10 +253,13 @@ fn overlap() {
     segments,
     vec![
       MediaSegment { start: 0, end: 20 },
-      MediaSegment { start: 16, end: 41 },
-      MediaSegment { start: 37, end: 62 },
-      MediaSegment { start: 58, end: 83 },
-      MediaSegment { start: 79, end: 99 }
+      MediaSegment { start: 15, end: 40 },
+      MediaSegment { start: 35, end: 60 },
+      MediaSegment { start: 55, end: 80 },
+      MediaSegment {
+        start: 75,
+        end: 100
+      }
     ]
   );
 }
@@ -270,8 +279,11 @@ fn offset() {
     segments,
     vec![
       MediaSegment { start: 30, end: 53 },
-      MediaSegment { start: 54, end: 77 },
-      MediaSegment { start: 78, end: 99 }
+      MediaSegment { start: 53, end: 76 },
+      MediaSegment {
+        start: 76,
+        end: 100
+      }
     ]
   );
 }
