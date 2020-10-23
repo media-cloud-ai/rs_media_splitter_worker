@@ -48,6 +48,7 @@ pub struct MediaSplitterParameters {
   max_duration: Option<Duration>,
   /// Specify the position from which the selected duration is reckoned.  
   /// By default, it is set from the start of the file, but it can also be set from the end.
+  #[serde(default = "DurationPosition::default")]
   duration_position: DurationPosition,
   /// It will add duration to overlap segments.  
   /// This means some data will be process twice.  
