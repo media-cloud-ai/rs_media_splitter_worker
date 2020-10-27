@@ -13,4 +13,4 @@ schemars = "0.8.0"
 serde = "^1.0"
 serde_json = "^1.0"
 serde_derive = "^1.0"
-stainless_ffmpeg = { git = "https://github.com/nomalab/stainless-ffmpeg.git", branch = "master" }
+stainless_ffmpeg = "0.2.3"

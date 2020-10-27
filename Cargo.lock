@@ -1646,7 +1646,8 @@ dependencies = [
 [[package]]
 name = "stainless_ffmpeg"
 version = "0.2.3"
-source = "git+https://github.com/nomalab/stainless-ffmpeg.git#2254da7b7b3760c41f708372fa444c5a9efd2321"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2c0df129693bd97a568eef98970aa6448bf585f5a40ca4328221ad075881a76"
 dependencies = [
  "libc",
  "log",
