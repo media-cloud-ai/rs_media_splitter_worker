@@ -852,9 +852,9 @@ checksum = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 
 [[package]]
 name = "mcai_worker_sdk"
-version = "0.11.9-rc1"
+version = "0.11.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "441406f929d38a8c5b56e2a4f4b393d5d1a5b613ea91112b2f8c9ab88bed1c14"
+checksum = "abe9c7ea000558ea1cdf531642caf2bd27eec522d56f1d452854ed08f51542e5"
 dependencies = [
  "amq-protocol",
  "amq-protocol-types",
